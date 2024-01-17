@@ -18,6 +18,9 @@ $newDirectory = New-Item -ItemType Directory -Path $data
 Get-ChildItem (Join-Path $PSScriptRoot "..\src\CompanyXyz.DependencySample.Worker\bin\Debug") -Filter CompanyXyz*.dll -Recur -File | `
     ForEach-Object { Copy-Item $_.FullName $data -Force }
 
+# $references = ls src\CompanyXyz.DependencySample.Worker\bin\Debug\net8.0\CompanyXyz.* | Get-ReferencedAssemblies
+
+
 # 1. List files, get references, expand data with attribute details, save to CSV (because expanding takes time)
 
 # TODO Run this bit in a new PowerShell Session otherwise all the DLLs are loaded and locked in our current session so executing again will fail

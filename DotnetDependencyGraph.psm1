@@ -119,7 +119,7 @@ function Get-ReferencedAssemblies {
 
     # List files, get references, resolve data with attribute details, save to CSV (because resolving takes time)
 
-    ls CompanyXyz.* | Get-ReferencedAssemblies | Resolve-AssemblyReferences | Export-CSV Dependencies-CompanyXyz.csv
+    ls CompanyXyz.*.dll | Get-ReferencedAssemblies | Resolve-AssemblyReferences | Export-CSV Dependencies-CompanyXyz.csv
 
     # You can then filter and convert the dependency list to graph formats, e.g. ConvertTo-DotGraph
 

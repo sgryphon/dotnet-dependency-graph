@@ -1,53 +1,55 @@
-Analyse Dependencies
-====================
+Dotnet Dependency Graph
+=======================
 
-1. Install GraphViz, if you don't already have it (see below)
-2. Build all your project DLLs/EXEs and copy them into one folder
-3. Run the Analyse-Dependencies.ps1 script
+A collection of PowerShell functions for extracting and analysing .NET assembly dependenies,
+and then generating a dependency graph from them.
 
-The script has inline code which will:
+Graphs are generated in a structured text format that can then be rended by tools.
 
-* copy across the DLLs/EXEs (to the Data directory)
-* calculate the dependencies
-  * note that there are some manual dependencies that are appended to the end
-* generate a DOT file with details of the dependencies
-* run GraphViz to generate the graph
+Supported output formats:
+* PlantUML component diagram
+* GraphViz DOT language
 
-The output graph files are written to the main folder, and can be stored in source control.
+Functions
+---------
 
-The working folders (Data and Working) are excluded from source control.
+| Function | Description |
+| -------- | ----------- |
+| Get-ReferencedAssemblies | Pass in a list of file paths and the referencenced assemblies will be extracted
+| Resolve-AssemblyReferences | Analyses the references to determine if they are direct, indirect, or redundant
+| ConvertTo-PlantUml | Converts to Plant UML graph language, as a component diagram
+| ConvertTo-DotGraph | Converts to GraphViz DOT graph language
 
-Install GraphViz
-----------------
 
-You can use the package management tools in PowerShell, with the ChocolateyGet provider, to install GraphViz:
+To use
+------
 
+1. Build all your project DLLs/EXEs
+2. Copy all the outputs into one folder
+3. Use the functions to analyse the dependencies:
+
+```pwsh
+# Import the module
+Import-Module ./DotnetDependencyGraph.psm1
+
+# List all your company DLLs and extract the references
+$references = ls CompanyXyz.*.dll | Get-ReferencedAssemblies
+
+# Analyse references to determine relationships
+$analysed = $references | Resolve-AssemblyReferences
+
+# Filter and output to PlantUML
+$plantUml = $analysed | Where-Object { ($_.DependencyType -eq 'Direct') } | ConvertTo-PlantUml
+
+# Output to file
+$plantUml | Out-File "dotnet-dependencies.puml"
 ```
-Install-PackageProvider ChocolateyGet
-Import-PackageProvider ChocolateyGet
-Install-Package Graphviz -Force
+
+Functions have full help, including examples, etc: 
+
+```pwsh
+Get-Help ConvertTo-PlantUml -Full
 ```
-
-GraphViz can also be installed directly from  (https://www.graphviz.org/).
-
-Manual Dependencies
--------------------
-
-Some of the EXE dependencies did not calculate correctly, so there is a manual file containing them (Dependencies-Manual-InTruck.csv) that is appended to the output.
-
-The file may need to be updated if dependencies change.
-
-
-Graph colouring and parameters
-------------------------------
-
-The script has an array of regular expressions that control colouring.
-
-Blue = EXE (usually self-hosted Windows Services)
-Red = Web Site DLLs (hosted in IIS)
-Green = InTruck EXE / other EXE (e.g. simulator and mock services)
-
-There are also other parameters, e.g. if Left-to-Right is a better layout for your architecture.
 
 
 Note on dependencies
@@ -64,15 +66,28 @@ Dependencies are also classified as either Indirect, Redundant, or Direct.
 * Redundant is where a child has a reference (i.e. it is already indirect), but the top level also has a reference; i.e. required both directly and by a child.
 * Direct is where the assembly has a reference, but no children do (i.e. it is not redundant).
 
-The script is configured to only show Included, Direct references.
+Generally you will want to show only Included, Direct references, for your project only, or all Direct references, for your project and third party references.
 
-References to libraries, system DLLs, etc, are not shown.
+You can adjust the filter for the specific references you want to include (e.g. maybe exclude system references)
 
-Only the lowest level (direct) link to a child library is shown. Redundant links are not shown (if a higher level library has a direct reference), to keep the diagram clean.
+Generally you don't want to show redundant links  (if a higher level library has a direct reference), to keep the diagram clean.
+
+Sample project
+--------------
+
+A sample project is included, that has a `Build-DependencyGraph.ps1` script, configure to call the relevant functions in sequence with the required parameters.
+
+First build the project (`dotnet build`) to generate the DLLs, then run the script `scripts/Build-DependencyGraph.ps1`, and it will generate the files.
+
+The script has an interim step of storing the expanded dependencies into a CSV file (in the `working` directory).
+
+You can copy (or install) the module into your own project, and then adapt the script to run it.
 
 
 Possible variations
 -------------------
+
+The graph generator takes in a dictionary of regular expression keys and colours to use. When processing the graph the function uses the first matching (if any) key. Otherwise the default colours are based on type -- light grey for EXEs (no longer commonly used), plain (white) for your code, and a darker grey for external components.
 
 The colouring and filtering can be changed as desired. It is also possible to manually group assemblies together to make the diagram clearer.
 
