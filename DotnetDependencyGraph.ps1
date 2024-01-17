@@ -1,8 +1,8 @@
 # Functions for extracting and manipulating DLL dependencies 
 
-# 1. List files, get references, expand data with attribute details, save to CSV (because expanding takes time)
+# 1. List files, get references, resolve data with attribute details, save to CSV (because resolving takes time)
 # 
-# ls CompanyXyz.* | Get-ReferencedAssemblies | Expand-AssemblyReferences | Export-CSV Dependencies-CompanyXyz.csv
+# ls CompanyXyz.* | Get-ReferencedAssemblies | Resolve-AssemblyReferences | Export-CSV Dependencies-CompanyXyz.csv
 #
 # If some DLLs can't be loaded, it may be because PowerShell has an old version of .NET
 
@@ -17,7 +17,7 @@
 #	);
 #	
 # Import-CSV Dependencies-CompanyXyz.csv | ? { ($_.DependencyType -eq "Direct") -and ($_.Scope -eq "Included") } `
-#   | Generate-Dot $nameColor | Out-File CompanyXyz.dot -encoding ASCII
+#   | ConvertTo-DotGraph $nameColor | Out-File CompanyXyz.dot -encoding ASCII
 #
 
 # 3. Use GraphViz to generate graphs
@@ -47,11 +47,9 @@ function Get-ReferencedAssemblies () {
     process {
         $name = [string]$_;
         if ( $name.EndsWith(".exe") -or $name.EndsWith(".dll") ) {
-            if ( $PSVersionTable.PSVersion.Major -ge 6 ) {
-                $assembly = [System.Reflection.Assembly]::LoadFrom($name);
-            } else {
-                $assembly = [System.Reflection.Assembly]::ReflectionOnlyLoadFrom($name);
-            }
+            # Load without locking (by taking an in-memory copy)
+            $bytes = [System.IO.File]::ReadAllBytes($name)
+            $assembly = [System.Reflection.Assembly]::Load($bytes)
 
             $referenced = $assembly.GetReferencedAssemblies();
 
@@ -78,7 +76,7 @@ function Get-ReferencedAssemblies () {
 
 
 # ------------------------------------------------------------------------------
-# Expand-AssemblyReferences
+# Resolve-AssemblyReferences
 #  $_       Objects with Assembly (name), AssemblyType (EXE or DLL),
 #           and References (array of referenced names)
 #  OUTPUT:  Objects with Assembly, AssemblyType (EXE or DLL), Reference
@@ -100,7 +98,7 @@ function Get-ReferencedAssemblies () {
 #
  
 # Expands collection of references to individual lines for direct, redundant and indirect dependencies
-function Expand-AssemblyReferences () {
+function Resolve-AssemblyReferences () {
     begin {
         # Build lookup dictionary
         $allAssemblyReferences = @{};
@@ -196,7 +194,7 @@ function RecurseAddDescendents($lookup, $visited, $result, $assemblyType) {
 
 
 # ------------------------------------------------------------------------------
-# Generate-Dot
+# ConvertTo-Dot
 #  $nameColor  Dictionary of Regex to match name and hex color to use.
 #  $_          Objects with Assembly, AssemblyType (EXE or DLL), Reference and Scope.
 #  OUTPUT:     Lines of DOT code.
@@ -212,7 +210,7 @@ function RecurseAddDescendents($lookup, $visited, $result, $assemblyType) {
 #
 
 # Convert list of dependencies into DOT graph language format
-function Generate-Dot ($nameColor, $dotProps) {
+function ConvertTo-DotGraph ($nameColor, $dotProps) {
     begin {
         $allReferences = @();
     }
