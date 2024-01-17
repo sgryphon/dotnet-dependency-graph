@@ -1,9 +1,11 @@
+#!/usr/bin/env pwsh
+
 # ------------------------------------------------------------------------------
 # Builds depenedency graph for CompanyXyz assemblies
 
 # Import library functions
-Remove-Module DotnetDependencyGraph
-Import-Module ../DotnetDependencyGraph.psm1
+#Remove-Module DotnetDependencyGraph
+Import-Module ../DotnetDependencyGraph.psm1 -Force
 
 
 # 0. Copy DLLs to working folder

@@ -1,47 +1,59 @@
-# Functions for extracting and manipulating DLL dependencies 
+# Functions for extracting and manipulating DLL dependencies from .NET assemblies
 
-# 1. List files, get references, resolve data with attribute details, save to CSV (because resolving takes time)
-# 
-# ls CompanyXyz.* | Get-ReferencedAssemblies | Resolve-AssemblyReferences | Export-CSV Dependencies-CompanyXyz.csv
-#
-# If some DLLs can't be loaded, it may be because PowerShell has an old version of .NET
+<#
+.SYNOPSIS
+    Gets all dependencies from a stream of filenames
+
+.DESCRIPTION
+
+    In general you only want to pass in a list of your own assemblies that you want
+    to analyse (these are later treated as Scope = Included). All first level external 
+    references will be extracted; if you include an external assembly (e.g. a third party DLL),
+    then _it's_ references will be expanded and included.
+
+.INPUTS
+
+    List of filenames (strings); ignores values not ending in ".exe" or ".dll".
+
+.OUTPUTS
+
+    Objects with Assembly (name), AssemblyType (EXE or DLL), and References (array of referenced names)
+
+.EXAMPLE
+
+    1. List files, get references, resolve data with attribute details, save to CSV (because resolving takes time)
+
+        ls CompanyXyz.* | Get-ReferencedAssemblies | Resolve-AssemblyReferences | Export-CSV Dependencies-CompanyXyz.csv
+
+    If some DLLs can't be loaded, it may be because PowerShell has an old version of .NET
 
 
-# 2. Load saved CSV, filter (e.g. direct, included only), convert to DOT using the color table, save to file
-# Array of name regex + color pairs. Checks are applied in order until first match.
-#
-# $nameColor = @( `
-#	( "^CompanyXyz\.SystemA", "#ffcccc" ), `
-#	( "^CompanyXyz\.SystemB", "#ccffcc" ), `
-#	( "^CompanyXyz\.SystemC", "#ccccff" ), `
-#	);
-#	
-# Import-CSV Dependencies-CompanyXyz.csv | ? { ($_.DependencyType -eq "Direct") -and ($_.Scope -eq "Included") } `
-#   | ConvertTo-DotGraph $nameColor | Out-File CompanyXyz.dot -encoding ASCII
-#
+    2. Load saved CSV, filter (e.g. direct, included only), convert to DOT using the color table, save to file
+    Array of name regex + color pairs. Checks are applied in order until first match.
 
-# 3. Use GraphViz to generate graphs
-# (install from https://www.graphviz.org/) 
-#
-# &'C:\Program Files\Graphviz2.38\bin\dot.exe' `-Tsvg `-oCompanyXyz.svg CompanyXyz.dot
-# &'C:\Program Files\Graphviz2.38\bin\dot.exe' `-Tpng `-oCompanyXyz.png CompanyXyz.dot
-#
+        $nameColor = @( `
+            ( "^CompanyXyz\.SystemA", "#ffcccc" ), `
+            ( "^CompanyXyz\.SystemB", "#ccffcc" ), `
+            ( "^CompanyXyz\.SystemC", "#ccccff" ), `
+            );
+            
+        Import-CSV Dependencies-CompanyXyz.csv | ? { ($_.DependencyType -eq "Direct") -and ($_.Scope -eq "Included") } `
+            | ConvertTo-DotGraph $nameColor | Out-File CompanyXyz.dot -encoding ASCII
 
+    3. Use GraphViz to generate graphs (install from https://www.graphviz.org/) 
 
-# ------------------------------------------------------------------------------
-# Get-ReferencedAssemblies
-#  $_       List of filenames (strings); ignores values not ending in ".exe" or ".dll".
-#  OUTPUT:  Objects with Assembly (name), AssemblyType (EXE or DLL),
-#           and References (array of referenced names)
-#
-#  In general you only want to pass in a list of your own assemblies that you want
-#  to analyse (these are later treated as Scope = Included). All first level external 
-#  references will be extracted; if you include an external assembly (e.g. a third party DLL),
-#  then _it's_ references will be expanded and included.
-#
+        &'C:\Program Files\Graphviz2.38\bin\dot.exe' `-Tsvg `-oCompanyXyz.svg CompanyXyz.dot
+        &'C:\Program Files\Graphviz2.38\bin\dot.exe' `-Tpng `-oCompanyXyz.png CompanyXyz.dot
 
-# Gets all dependencies from stream of filenames
-function Get-ReferencedAssemblies () {
+#>
+function Get-ReferencedAssemblies {
+    [CmdletBinding()]    
+    param (
+        # List of filenames (strings); ignores values not ending in ".exe" or ".dll".
+        [Parameter(Mandatory=$true, ValueFromPipeline=$true)]
+        [string[]]
+        $InputObject
+    )
     begin {
     }
     process {
@@ -75,30 +87,71 @@ function Get-ReferencedAssemblies () {
 }
 
 
-# ------------------------------------------------------------------------------
-# Resolve-AssemblyReferences
-#  $_       Objects with Assembly (name), AssemblyType (EXE or DLL),
-#           and References (array of referenced names)
-#  OUTPUT:  Objects with Assembly, AssemblyType (EXE or DLL), Reference
-#           (each individual reference), ShortestChain, LongestChain, 
-#           DependencyType (Direct, Redundant or Indirect),
-#           Scope (Included or External).
-#
-#  The entire tree of references (both direct and indirect) is recursively expanded.
-#
-#  DependencyType: If LongestChain = 1, then the reference is a Direct dependent,
-#  otherwise if ShortestChain = 1 (and LongestChain > 1), then the reference is Redundant
-#  (it is including via a chain);
-#  otherwise, the reference is indirect (only via a chain; no direct reference).
-#
-#  When graphing, it is common to only show the Direct dependencies, to avoid cluttering
-#  up the diagram with Redundant and Indirect dependencies.
-#
-#  Scope: Files in the original input list are Included, otherwise External.
-#
- 
-# Expands collection of references to individual lines for direct, redundant and indirect dependencies
-function Resolve-AssemblyReferences () {
+<#
+.SYNOPSIS
+    Expands collection of references to individual lines for direct, redundant and indirect dependencies
+
+.DESCRIPTION
+
+    The entire tree of references (both direct and indirect) is recursively expanded.
+
+    DependencyType: If LongestChain = 1, then the reference is a Direct dependent,
+    otherwise if ShortestChain = 1 (and LongestChain > 1), then the reference is Redundant
+    (it is including via a chain);
+    otherwise, the reference is indirect (only via a chain; no direct reference).
+
+    When graphing, it is common to only show the Direct dependencies, to avoid cluttering
+    up the diagram with Redundant and Indirect dependencies.
+
+    Scope: Files in the original input list are Included, otherwise External.
+
+.INPUTS
+
+    Objects with Assembly (name), AssemblyType (EXE or DLL),
+    and References (array of referenced names)
+
+.OUTPUTS
+
+    Objects with Assembly, AssemblyType (EXE or DLL), Reference
+    (each individual reference), ShortestChain, LongestChain, 
+    DependencyType (Direct, Redundant or Indirect),
+    Scope (Included or External).
+
+.EXAMPLE
+
+    1. List files, get references, resolve data with attribute details, save to CSV (because resolving takes time)
+
+        ls CompanyXyz.* | Get-ReferencedAssemblies | Resolve-AssemblyReferences | Export-CSV Dependencies-CompanyXyz.csv
+
+    If some DLLs can't be loaded, it may be because PowerShell has an old version of .NET
+
+
+    2. Load saved CSV, filter (e.g. direct, included only), convert to DOT using the color table, save to file
+    Array of name regex + color pairs. Checks are applied in order until first match.
+
+        $nameColor = @( `
+            ( "^CompanyXyz\.SystemA", "#ffcccc" ), `
+            ( "^CompanyXyz\.SystemB", "#ccffcc" ), `
+            ( "^CompanyXyz\.SystemC", "#ccccff" ), `
+            );
+            
+        Import-CSV Dependencies-CompanyXyz.csv | ? { ($_.DependencyType -eq "Direct") -and ($_.Scope -eq "Included") } `
+            | ConvertTo-DotGraph $nameColor | Out-File CompanyXyz.dot -encoding ASCII
+
+    3. Use GraphViz to generate graphs (install from https://www.graphviz.org/) 
+
+        &'C:\Program Files\Graphviz2.38\bin\dot.exe' `-Tsvg `-oCompanyXyz.svg CompanyXyz.dot
+        &'C:\Program Files\Graphviz2.38\bin\dot.exe' `-Tpng `-oCompanyXyz.png CompanyXyz.dot
+
+#>
+function Resolve-AssemblyReferences {
+    [CmdletBinding()]    
+    param (
+        # Objects with Assembly (name), AssemblyType (EXE or DLL), and References (array of referenced names)
+        [Parameter(Mandatory=$true, ValueFromPipeline=$true)]
+        [string[]]
+        $InputObject
+    )
     begin {
         # Build lookup dictionary
         $allAssemblyReferences = @{};
@@ -193,24 +246,68 @@ function RecurseAddDescendents($lookup, $visited, $result, $assemblyType) {
 }
 
 
-# ------------------------------------------------------------------------------
-# ConvertTo-Dot
-#  $nameColor  Dictionary of Regex to match name and hex color to use.
-#  $_          Objects with Assembly, AssemblyType (EXE or DLL), Reference and Scope.
-#  OUTPUT:     Lines of DOT code.
-#
-#  EXE's are output as hexagons, Scope = Included as rectangles, and all other
-#  assemblies as ovals.
-#
-#  The $nameColor dictionary can be used to color the output based on the
-#  first regular expression that matches the assembly name.
-#  
-#  Note: You may want to filter to only include direct dependencies before
-#  generating graphs.
-#
+<#
+.SYNOPSIS
+    Convert list of dependencies into DOT graph language format
 
-# Convert list of dependencies into DOT graph language format
-function ConvertTo-DotGraph ($nameColor, $dotProps) {
+.DESCRIPTION
+
+    EXE's are output as hexagons, Scope = Included as rectangles, and all other
+    assemblies as ovals.
+
+    The $NameColor dictionary can be used to color the output based on the
+    first regular expression that matches the assembly name.
+
+    Note: You may want to filter to only include direct dependencies before
+    generating graphs.
+
+.INPUTS
+
+    Objects with Assembly, AssemblyType (EXE or DLL), Reference and Scope.
+
+.OUTPUTS
+
+    Lines of DOT code.
+
+.EXAMPLE
+
+    1. List files, get references, resolve data with attribute details, save to CSV (because resolving takes time)
+
+        ls CompanyXyz.* | Get-ReferencedAssemblies | Resolve-AssemblyReferences | Export-CSV Dependencies-CompanyXyz.csv
+
+    If some DLLs can't be loaded, it may be because PowerShell has an old version of .NET
+
+
+    2. Load saved CSV, filter (e.g. direct, included only), convert to DOT using the color table, save to file
+    Array of name regex + color pairs. Checks are applied in order until first match.
+
+        $nameColor = @( `
+            ( "^CompanyXyz\.SystemA", "#ffcccc" ), `
+            ( "^CompanyXyz\.SystemB", "#ccffcc" ), `
+            ( "^CompanyXyz\.SystemC", "#ccccff" ), `
+            );
+            
+        Import-CSV Dependencies-CompanyXyz.csv | ? { ($_.DependencyType -eq "Direct") -and ($_.Scope -eq "Included") } `
+            | ConvertTo-DotGraph $nameColor | Out-File CompanyXyz.dot -encoding ASCII
+
+    3. Use GraphViz to generate graphs (install from https://www.graphviz.org/) 
+
+        &'C:\Program Files\Graphviz2.38\bin\dot.exe' `-Tsvg `-oCompanyXyz.svg CompanyXyz.dot
+        &'C:\Program Files\Graphviz2.38\bin\dot.exe' `-Tpng `-oCompanyXyz.png CompanyXyz.dot
+
+#>
+function ConvertTo-DotGraph {
+    [CmdletBinding()]    
+    param (
+        # Dictionary of name Regex to match name and hex colour to use. Rules are applied in order until first match.
+        [string] $NameColor,
+        # Additional properties to output to the Dot file
+        [string] $DotProps,
+        # Objects with Assembly (name), AssemblyType (EXE or DLL), and References (array of referenced names)
+        [Parameter(Mandatory=$true, ValueFromPipeline=$true)]
+        [string[]]
+        $InputObject
+    )
     begin {
         $allReferences = @();
     }
@@ -219,14 +316,14 @@ function ConvertTo-DotGraph ($nameColor, $dotProps) {
     }
     end {
         Write-Output "digraph G { subgraph cluster_0 { label=""Legend""; ""Executable (.exe)"" [shape=hexagon,style=filled,fillcolor=""#cccccc""]; ""Library (.dll)"" [shape=rectangle,style=filled,fillcolor=""#ffffff""]; ""External Library / Other"" [shape=oval,style=filled,fillcolor=""#eeeeee""]; }";
-        Write-Output $dotProps
+        Write-Output $DotProps
 
         $defined = @();
 
         # Included items
         foreach ($item in $allReferences) {
             if ( -not( $defined -contains $item.Assembly ) ) {
-                $format = FormatDot $item.Assembly "Included" $item.AssemblyType $nameColor;
+                $format = FormatDot $item.Assembly "Included" $item.AssemblyType $NameColor;
                 Write-Output "$format;";
                 $defined += $item.Assembly;
             }
@@ -235,7 +332,7 @@ function ConvertTo-DotGraph ($nameColor, $dotProps) {
         # Referenced items
         foreach ($item in $allReferences) {
             if ( -not( $defined -contains $item.Reference ) ) {
-                $format = FormatDot $item.Reference $item.Scope "DLL" $nameColor;
+                $format = FormatDot $item.Reference $item.Scope "DLL" $NameColor;
                 Write-Output "$format;";
                 $defined += $item.Reference;
             }
