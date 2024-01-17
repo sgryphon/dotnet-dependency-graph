@@ -343,7 +343,12 @@ function ConvertTo-C4ComponentDiagram {
 }
 
 function FormatC4Component ( $name, $scope, $assemblyType, $nameTag ) {
-    # Shape based on type
+    $split = $name.Split(".")
+    $shortName = $split[$split.Length - 1]
+    if ( $shortName -eq "Abstractions" ) {
+        $shortName = $split[$split.Length - 2] + "." + $shortName;
+    }
+
     if ( $assemblyType -eq "EXE" ) {
         $tag = "Application"; # Default green
     }
@@ -370,7 +375,7 @@ function FormatC4Component ( $name, $scope, $assemblyType, $nameTag ) {
         $tagPart = ", `$tags=""$tag""";
     }
 
-    $format = "$macro($name, ""$name"", ""$assemblyType""$tagPart)";
+    $format = "$macro($name, ""$shortName"", "".NET $assemblyType"", ""$name""$tagPart)";
     return $format; 
 }
 
@@ -479,7 +484,7 @@ function ConvertTo-PlantUml {
 }
 
 function FormatPlantUmlComponent ( $name, $scope, $assemblyType, $nameColor ) {
-    # Shape based on type
+    # Colour based on type
     if ( $assemblyType -eq "EXE" ) {
         $stereotype = "<<Application>>";
         $color = "#cccccc"; # Default grey
