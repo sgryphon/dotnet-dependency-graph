@@ -1,4 +1,21 @@
-# Functions for extracting and manipulating DLL dependencies from .NET assemblies
+# DotnetDependencyGraph.psm1
+# Functions for extracting DLL dependencies from .NET assemblies and generating dependency graphs
+#
+# Copyright (C) 2016, 2017, 2019, 2023 Sly Gryphon
+# https://github.com/sgryphon/dotnet-dependency-graph
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 <#
 .SYNOPSIS
@@ -299,8 +316,8 @@ function RecurseAddDescendents($lookup, $visited, $result, $assemblyType) {
 function ConvertTo-DotGraph {
     [CmdletBinding()]    
     param (
-        # Dictionary of name Regex to match name and hex colour to use. Rules are applied in order until first match.
-        [string] $NameColor,
+        # Array of name Regex to match and hex colour pairs. Rules are applied in order until first match.
+        $NameColor,
         # Additional properties to output to the Dot file
         [string] $DotProps,
         # Objects with Assembly (name), AssemblyType (EXE or DLL), and References (array of referenced names)
