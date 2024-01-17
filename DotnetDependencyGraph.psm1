@@ -38,30 +38,11 @@
 
 .EXAMPLE
 
-    1. List files, get references, resolve data with attribute details, save to CSV (because resolving takes time)
+    # List files, get references, resolve data with attribute details, save to CSV (because resolving takes time)
 
-        ls CompanyXyz.* | Get-ReferencedAssemblies | Resolve-AssemblyReferences | Export-CSV Dependencies-CompanyXyz.csv
+    ls CompanyXyz.* | Get-ReferencedAssemblies | Resolve-AssemblyReferences | Export-CSV Dependencies-CompanyXyz.csv
 
-    If some DLLs can't be loaded, it may be because PowerShell has an old version of .NET
-
-
-    2. Load saved CSV, filter (e.g. direct, included only), convert to DOT using the color table, save to file
-    Array of name regex + color pairs. Checks are applied in order until first match.
-
-        $nameColor = @( `
-            ( "^CompanyXyz\.SystemA", "#ffcccc" ), `
-            ( "^CompanyXyz\.SystemB", "#ccffcc" ), `
-            ( "^CompanyXyz\.SystemC", "#ccccff" ), `
-            );
-            
-        Import-CSV Dependencies-CompanyXyz.csv | ? { ($_.DependencyType -eq "Direct") -and ($_.Scope -eq "Included") } `
-            | ConvertTo-DotGraph $nameColor | Out-File CompanyXyz.dot -encoding ASCII
-
-    3. Use GraphViz to generate graphs (install from https://www.graphviz.org/) 
-
-        &'C:\Program Files\Graphviz2.38\bin\dot.exe' `-Tsvg `-oCompanyXyz.svg CompanyXyz.dot
-        &'C:\Program Files\Graphviz2.38\bin\dot.exe' `-Tpng `-oCompanyXyz.png CompanyXyz.dot
-
+    # You can then filter and convert the dependency list to graph formats, e.g. ConvertTo-DotGraph
 #>
 function Get-ReferencedAssemblies {
     [CmdletBinding()]    
@@ -136,29 +117,11 @@ function Get-ReferencedAssemblies {
 
 .EXAMPLE
 
-    1. List files, get references, resolve data with attribute details, save to CSV (because resolving takes time)
+    # List files, get references, resolve data with attribute details, save to CSV (because resolving takes time)
 
-        ls CompanyXyz.* | Get-ReferencedAssemblies | Resolve-AssemblyReferences | Export-CSV Dependencies-CompanyXyz.csv
+    ls CompanyXyz.* | Get-ReferencedAssemblies | Resolve-AssemblyReferences | Export-CSV Dependencies-CompanyXyz.csv
 
-    If some DLLs can't be loaded, it may be because PowerShell has an old version of .NET
-
-
-    2. Load saved CSV, filter (e.g. direct, included only), convert to DOT using the color table, save to file
-    Array of name regex + color pairs. Checks are applied in order until first match.
-
-        $nameColor = @( `
-            ( "^CompanyXyz\.SystemA", "#ffcccc" ), `
-            ( "^CompanyXyz\.SystemB", "#ccffcc" ), `
-            ( "^CompanyXyz\.SystemC", "#ccccff" ), `
-            );
-            
-        Import-CSV Dependencies-CompanyXyz.csv | ? { ($_.DependencyType -eq "Direct") -and ($_.Scope -eq "Included") } `
-            | ConvertTo-DotGraph $nameColor | Out-File CompanyXyz.dot -encoding ASCII
-
-    3. Use GraphViz to generate graphs (install from https://www.graphviz.org/) 
-
-        &'C:\Program Files\Graphviz2.38\bin\dot.exe' `-Tsvg `-oCompanyXyz.svg CompanyXyz.dot
-        &'C:\Program Files\Graphviz2.38\bin\dot.exe' `-Tpng `-oCompanyXyz.png CompanyXyz.dot
+    # You can then filter and convert the dependency list to graph formats, e.g. ConvertTo-DotGraph
 
 #>
 function Resolve-AssemblyReferences {
@@ -265,6 +228,139 @@ function RecurseAddDescendents($lookup, $visited, $result, $assemblyType) {
 
 <#
 .SYNOPSIS
+    Convert list of dependencies into PlantUML format
+
+.DESCRIPTION
+
+    Note: You may want to filter to only include direct dependencies before
+    generating graphs.
+
+.INPUTS
+
+    Objects with Assembly, AssemblyType (EXE or DLL), Reference and Scope.
+
+.OUTPUTS
+
+    Lines of PlantUML code.
+
+.EXAMPLE
+
+    # Load saved CSV, filter (e.g. direct, included only), convert using a color table, save to file
+
+    # Array of name regex + color pairs. Checks are applied in order until first match.
+    $nameColor = @{ `
+        '^CompanyXyz\.SystemA' = '#ffcccc'; `
+        '^CompanyXyz\.SystemB' = '#ccffcc'; `
+        '^CompanyXyz\.SystemC' = '#ccccff'; `
+    };
+            
+    Import-CSV Dependencies-CompanyXyz.csv | ? { ($_.DependencyType -eq "Direct") -and ($_.Scope -eq "Included") } `
+        | ConvertTo-PlantUml -NameColor $nameColor | Out-File dotnet-dependencies-CompanyXyz.puml
+
+    # Use PlantUML to generate graphs (https://plantuml.com/)
+
+#>
+function ConvertTo-PlantUml {
+    [CmdletBinding()]    
+    param (
+        # Document title
+        [string] $Title,
+        # Array of name Regex to match and hex colour pairs. Rules are applied in order until first match.
+        $NameColor,
+        # Additional content to add to the start of the document
+        [string] $AdditionalContent,
+        # Objects with Assembly (name), AssemblyType (EXE or DLL), and References (array of referenced names)
+        [Parameter(Mandatory=$true, ValueFromPipeline=$true)]
+        [string[]]
+        $InputObject
+    )
+    begin {
+        $allReferences = @();
+    }
+    process {
+        $allReferences += $_;
+    }
+    end {
+        if ( -not $Title ) {
+            $Title = "Component diagram - dotnet assembly dependencies";
+        }
+
+        Write-Output "@startuml"
+        Write-Output ""
+        Write-Output "title $Title"
+        Write-Output ""
+
+        if ($AdditionalContent) {
+            Write-Output $AdditionalContent
+            Write-Output ""    
+        }
+        
+        $defined = @();
+
+        # Included items
+        foreach ($item in $allReferences) {
+            if ( -not( $defined -contains $item.Assembly ) ) {
+                $format = FormatPlantUmlComponent $item.Assembly "Included" $item.AssemblyType $NameColor;
+                Write-Output "$format";
+                $defined += $item.Assembly;
+            }
+        }
+
+        Write-Output ""
+
+        # Referenced items
+        foreach ($item in $allReferences) {
+            if ( -not( $defined -contains $item.Reference ) ) {
+                $format = FormatPlantUmlComponent $item.Reference $item.Scope "DLL" $NameColor;
+                Write-Output "$format";
+                $defined += $item.Reference;
+            }
+        }
+
+        Write-Output ""
+
+        # Links
+        foreach ($item in $allReferences) {
+            Write-Output "[$($item.Assembly)] ..> [$($item.Reference)] : <<use>>"
+        }
+
+        Write-Output ""
+        Write-Output "@enduml"
+    }
+}
+
+function FormatPlantUmlComponent ( $name, $scope, $assemblyType, $nameColor ) {
+    # Shape based on type
+    if ( $assemblyType -eq "EXE" ) {
+        $stereotype = "<<Application>>";
+        $color = "#cccccc"; # Default grey
+    }
+    else {
+        if ( $scope -eq "Included" ) {
+            $stereotype = $null;
+            $color = "#ffffff"; # Default white
+        }
+        else {
+            $stereotype = "<<External>>";
+            $color = "#eeeeee"; # Default off-white
+        }
+    }
+
+    # Color based on name
+    foreach ($key in $nameColor.Keys) {
+        if ( $name -match $key ) {
+            $color = $nameColor[$key];
+            break;
+        }
+    }
+
+    $format = "component [$name] $stereotype $color";
+    return $format; 
+}
+
+
+<#
+.SYNOPSIS
     Convert list of dependencies into DOT graph language format
 
 .DESCRIPTION
@@ -288,29 +384,22 @@ function RecurseAddDescendents($lookup, $visited, $result, $assemblyType) {
 
 .EXAMPLE
 
-    1. List files, get references, resolve data with attribute details, save to CSV (because resolving takes time)
+    # Load saved CSV, filter (e.g. direct, included only), convert to DOT using the color table, save to file
 
-        ls CompanyXyz.* | Get-ReferencedAssemblies | Resolve-AssemblyReferences | Export-CSV Dependencies-CompanyXyz.csv
-
-    If some DLLs can't be loaded, it may be because PowerShell has an old version of .NET
-
-
-    2. Load saved CSV, filter (e.g. direct, included only), convert to DOT using the color table, save to file
-    Array of name regex + color pairs. Checks are applied in order until first match.
-
-        $nameColor = @( `
-            ( "^CompanyXyz\.SystemA", "#ffcccc" ), `
-            ( "^CompanyXyz\.SystemB", "#ccffcc" ), `
-            ( "^CompanyXyz\.SystemC", "#ccccff" ), `
-            );
+    # Array of name regex + color pairs. Checks are applied in order until first match.
+    $nameColor = @{ `
+        '^CompanyXyz\.SystemA' = '#ffcccc'; `
+        '^CompanyXyz\.SystemB' = '#ccffcc'; `
+        '^CompanyXyz\.SystemC' = '#ccccff'; `
+    };
             
-        Import-CSV Dependencies-CompanyXyz.csv | ? { ($_.DependencyType -eq "Direct") -and ($_.Scope -eq "Included") } `
-            | ConvertTo-DotGraph $nameColor | Out-File CompanyXyz.dot -encoding ASCII
+    Import-CSV Dependencies-CompanyXyz.csv | ? { ($_.DependencyType -eq "Direct") -and ($_.Scope -eq "Included") } `
+        | ConvertTo-DotGraph $nameColor | Out-File CompanyXyz.dot -encoding ASCII
 
-    3. Use GraphViz to generate graphs (install from https://www.graphviz.org/) 
+    # Use GraphViz to generate graphs (install from https://www.graphviz.org/) 
 
-        &'C:\Program Files\Graphviz2.38\bin\dot.exe' `-Tsvg `-oCompanyXyz.svg CompanyXyz.dot
-        &'C:\Program Files\Graphviz2.38\bin\dot.exe' `-Tpng `-oCompanyXyz.png CompanyXyz.dot
+    &'C:\Program Files\Graphviz2.38\bin\dot.exe' `-Tsvg `-oCompanyXyz.svg CompanyXyz.dot
+    &'C:\Program Files\Graphviz2.38\bin\dot.exe' `-Tpng `-oCompanyXyz.png CompanyXyz.dot
 
 #>
 function ConvertTo-DotGraph {
@@ -383,10 +472,9 @@ function FormatDot ( $name, $scope, $assemblyType, $nameColor ) {
     }
 
     # Color based on name
-    foreach ($keyValue in $nameColor) {
-        $key = $keyValue[0];
+    foreach ($key in $nameColor.Keys) {
         if ( $name -match $key ) {
-            $color = $keyValue[1];
+            $color = $nameColor[$key];
             break;
         }
     }
@@ -395,6 +483,8 @@ function FormatDot ( $name, $scope, $assemblyType, $nameColor ) {
     return $format; 
 }
 
+
+Export-ModuleMember -Function ConvertTo-DotGraph
+Export-ModuleMember -Function ConvertTo-PlantUml
 Export-ModuleMember -Function Get-ReferencedAssemblies
 Export-ModuleMember -Function Resolve-AssemblyReferences
-Export-ModuleMember -Function ConvertTo-DotGraph

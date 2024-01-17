@@ -28,26 +28,19 @@ Get-ChildItem (Join-Path $data "CompanyXyz*.*") | Get-ReferencedAssemblies | Res
 # 2. Load saved CSV, filter (e.g. direct, included only), convert to DOT using the color table, save to file
 # Array of name regex + color pairs. Checks are applied in order until first match.
 
-$nameColor = @( `
-    ( '^CompanyXyz\.DependencySample\.Worker', '#ccffcc' )
-);
+$nameColor = @{ `
+    '^CompanyXyz\.DependencySample\.Worker' = '#ccffcc'
+};
 
-$dotProps = 'rankdir=LR;'
+#$dotProps = 'rankdir=LR;'
+# Import-CSV (Join-Path $working "Dependencies-CompanyXyz.csv") `
+#     | Where-Object { ($_.DependencyType -eq 'Direct') -and ($_.Scope -eq 'Included') } `
+#     | Where-Object { -not ($_.Assembly -match 'Test|Migrat') } `
+#     | ConvertTo-DotGraph $nameColor $dotProps | Out-File (Join-Path $PSScriptRoot "../docs/CompanyXyz.dot") -encoding ASCII
 
+$plantUmlAdditionalContent = "left to right direction"
 Import-CSV (Join-Path $working "Dependencies-CompanyXyz.csv") `
-    | Where-Object { ($_.DependencyType -eq 'Direct') -and ($_.Scope -eq 'Included') } `
+    | Where-Object { ($_.DependencyType -eq 'Direct') } `
     | Where-Object { -not ($_.Assembly -match 'Test|Migrat') } `
-    | ConvertTo-DotGraph $nameColor $dotProps | Out-File (Join-Path $PSScriptRoot "../docs/CompanyXyz.dot") -encoding ASCII
-
-# 3. Use GraphViz to generate graphs
-
-#$graphViz = 'C:\Program Files (x86)\Graphviz2.38\bin\dot.exe'
-#& $graphViz `-Tsvg `-oCompanyXyz.svg Working\CompanyXyz.dot
-#& $graphViz `-Tpng `-oCompanyXyz.png Working\CompanyXyz.dot
-
-
-# $storageAssemblyPath = 'C:\Code\dotnet-dependency-graph\sample/working/data/CompanyXyz.DependencySample.Worker.dll'
-# $bytes = [System.IO.File]::ReadAllBytes($storageAssemblyPath)
-# $assembly = [System.Reflection.Assembly]::Load($bytes)
-# $referenced = $assembly.GetReferencedAssemblies();
-
+    | ConvertTo-PlantUml "Company XYZ - Dependency Sample component diagram" -NameColor $nameColor -AdditionalContent $plantUmlAdditionalContent `
+    | Out-File (Join-Path $PSScriptRoot "../docs/dotnet-dependencies-CompanyXyz.puml")
