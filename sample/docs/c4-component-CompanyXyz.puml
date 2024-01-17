@@ -1,0 +1,32 @@
+@startuml
+
+!include <C4/C4_Component>
+AddComponentTag("Application", $bgColor="#0000ff")
+
+title Component Diagram - Company XYZ - Dependency Sample
+
+LAYOUT_LEFT_RIGHT()
+AddComponentTag("Worker", $bgColor="#ccffcc")
+AddComponentTag("System", $bgColor="#ccccff")
+
+Component(CompanyXyz.DependencySample.Worker, "CompanyXyz.DependencySample.Worker", "DLL", $tags="Worker")
+Component(CompanyXyz.DependencySample.Library1, "CompanyXyz.DependencySample.Library1", "DLL")
+
+Component_Ext(Microsoft.Extensions.Hosting, "Microsoft.Extensions.Hosting", "DLL")
+Component_Ext(System.Runtime, "System.Runtime", "DLL", $tags="System")
+Component_Ext(Microsoft.Extensions.Logging.Abstractions, "Microsoft.Extensions.Logging.Abstractions", "DLL")
+Component_Ext(Microsoft.Extensions.Configuration.UserSecrets, "Microsoft.Extensions.Configuration.UserSecrets", "DLL")
+Component_Ext(Microsoft.Extensions.DependencyInjection.Abstractions, "Microsoft.Extensions.DependencyInjection.Abstractions", "DLL")
+Component_Ext(Microsoft.Extensions.Hosting.Abstractions, "Microsoft.Extensions.Hosting.Abstractions", "DLL")
+
+Rel(CompanyXyz.DependencySample.Worker, Microsoft.Extensions.Hosting, "Use", ".NET reference")
+Rel(CompanyXyz.DependencySample.Library1, System.Runtime, "Use", ".NET reference")
+Rel(CompanyXyz.DependencySample.Worker, Microsoft.Extensions.Logging.Abstractions, "Use", ".NET reference")
+Rel(CompanyXyz.DependencySample.Worker, Microsoft.Extensions.Configuration.UserSecrets, "Use", ".NET reference")
+Rel(CompanyXyz.DependencySample.Worker, Microsoft.Extensions.DependencyInjection.Abstractions, "Use", ".NET reference")
+Rel(CompanyXyz.DependencySample.Worker, CompanyXyz.DependencySample.Library1, "Use", ".NET reference")
+Rel(CompanyXyz.DependencySample.Worker, Microsoft.Extensions.Hosting.Abstractions, "Use", ".NET reference")
+
+SHOW_LEGEND()
+
+@enduml

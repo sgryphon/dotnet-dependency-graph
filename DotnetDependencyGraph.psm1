@@ -228,6 +228,155 @@ function RecurseAddDescendents($lookup, $visited, $result, $assemblyType) {
 
 <#
 .SYNOPSIS
+    Convert list of dependencies into C4-PlantUML component diagram format
+
+.DESCRIPTION
+
+    See: https://github.com/plantuml-stdlib/C4-PlantUML
+
+    Note: You may want to filter to only include direct dependencies before
+    generating graphs.
+
+.INPUTS
+
+    Objects with Assembly, AssemblyType (EXE or DLL), Reference and Scope.
+
+.OUTPUTS
+
+    Lines of C4-PlantUML code.
+
+.EXAMPLE
+
+    # Load saved CSV, filter (e.g. direct, included only), convert using a color table, save to file
+
+    # Array of name regex + color pairs. Checks are applied in order until first match.
+    $tagColor = @{ `
+        '^CompanyXyz\.SystemA' = 'Up'; `
+        '^CompanyXyz\.SystemB' = 'Charm'; `
+        '^CompanyXyz\.SystemC' = 'Strange'; `
+    };
+
+    $additionalContent = "AddElementTag(""Up"", `$backgroundColor=""#ffcccc"")`n" `
+        + "AddElementTag(""Charm"", `$backgroundColor=""#ccffcc"")`n" `
+        + "AddElementTag(""Strange"", `$backgroundColor=""#ccccff"")`n"
+
+    Import-CSV Dependencies-CompanyXyz.csv | ? { ($_.DependencyType -eq "Direct") -and ($_.Scope -eq "Included") } `
+        | ConvertTo-C4ComponentDiagram -TagColor $tagColor -AdditionalContent $additionalContent
+        | Out-File c4-components-CompanyXyz.puml
+
+    # Use PlantUML to generate graphs (https://plantuml.com/)
+
+#>
+function ConvertTo-C4ComponentDiagram {
+    [CmdletBinding()]    
+    param (
+        # Document title
+        [string] $Title,
+        # Array of name Regex to match and tag pairs. Rules are applied in order until first match. Pass in formatting for the tags in AdditionalContent.
+        $NameTag,
+        # Additional content to add to the start of the document
+        [string] $AdditionalContent,
+        # Objects with Assembly (name), AssemblyType (EXE or DLL), and References (array of referenced names)
+        [Parameter(Mandatory=$true, ValueFromPipeline=$true)]
+        [string[]]
+        $InputObject
+    )
+    begin {
+        $allReferences = @();
+    }
+    process {
+        $allReferences += $_;
+    }
+    end {
+        if ( -not $Title ) {
+            $Title = "Component diagram - dotnet assembly dependencies";
+        }
+
+        Write-Output "@startuml"
+        Write-Output ""
+        Write-Output "!include <C4/C4_Component>"
+        # Write-Output "!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml"
+        Write-Output "AddComponentTag(""Application"", `$bgColor=""#0000ff"")"
+        Write-Output ""
+        Write-Output "title $Title"
+        Write-Output ""
+
+        if ($AdditionalContent) {
+            Write-Output $AdditionalContent
+            Write-Output ""    
+        }
+        
+        $defined = @();
+
+        # Included items
+        foreach ($item in $allReferences) {
+            if ( -not( $defined -contains $item.Assembly ) ) {
+                $format = FormatC4Component $item.Assembly "Included" $item.AssemblyType $NameTag;
+                Write-Output "$format";
+                $defined += $item.Assembly;
+            }
+        }
+
+        Write-Output ""
+
+        # Referenced items
+        foreach ($item in $allReferences) {
+            if ( -not( $defined -contains $item.Reference ) ) {
+                $format = FormatC4Component $item.Reference $item.Scope "DLL" $NameTag;
+                Write-Output "$format";
+                $defined += $item.Reference;
+            }
+        }
+
+        Write-Output ""
+
+        # Links
+        foreach ($item in $allReferences) {
+            Write-Output "Rel($($item.Assembly), $($item.Reference), ""Use"", "".NET reference"")"
+        }
+
+        Write-Output ""
+        Write-Output "SHOW_LEGEND()"
+        Write-Output ""
+        Write-Output "@enduml"
+    }
+}
+
+function FormatC4Component ( $name, $scope, $assemblyType, $nameTag ) {
+    # Shape based on type
+    if ( $assemblyType -eq "EXE" ) {
+        $tag = "Application"; # Default green
+    }
+    else {
+        if ( $scope -eq "Included" ) {
+            $macro = "Component"
+        }
+        else {
+            $macro = "Component_Ext"
+        }
+    }
+
+    # Tag based on name
+    $tag = ""
+    foreach ($key in $nameTag.Keys) {
+        if ( $name -match $key ) {
+            $tag = $nameTag[$key];
+            break;
+        }
+    }
+
+    $tagPart = ""
+    if ($tag) {
+        $tagPart = ", `$tags=""$tag""";
+    }
+
+    $format = "$macro($name, ""$name"", ""$assemblyType""$tagPart)";
+    return $format; 
+}
+
+
+<#
+.SYNOPSIS
     Convert list of dependencies into PlantUML format
 
 .DESCRIPTION
@@ -484,6 +633,7 @@ function FormatDot ( $name, $scope, $assemblyType, $nameColor ) {
 }
 
 
+Export-ModuleMember -Function ConvertTo-C4ComponentDiagram
 Export-ModuleMember -Function ConvertTo-DotGraph
 Export-ModuleMember -Function ConvertTo-PlantUml
 Export-ModuleMember -Function Get-ReferencedAssemblies

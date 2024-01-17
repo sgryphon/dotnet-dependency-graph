@@ -47,3 +47,16 @@ Import-CSV (Join-Path $working "Dependencies-CompanyXyz.csv") `
     | Where-Object { -not ($_.Assembly -match 'Test|Migrat') } `
     | ConvertTo-PlantUml "Company XYZ - Dependency Sample component diagram" -NameColor $nameColor -AdditionalContent $plantUmlAdditionalContent `
     | Out-File (Join-Path $PSScriptRoot "../docs/dotnet-dependencies-CompanyXyz.puml")
+
+$nameTag = @{ `
+    '^CompanyXyz\.DependencySample\.Worker' = 'Worker'
+    '^System\.' = 'System'
+};
+$c4AdditionalContent = "LAYOUT_LEFT_RIGHT()`n" `
+    + "AddComponentTag(""Worker"", `$bgColor=""#ccffcc"")`n" `
+    + "AddComponentTag(""System"", `$bgColor=""#ccccff"")";
+Import-CSV (Join-Path $working "Dependencies-CompanyXyz.csv") `
+    | Where-Object { ($_.DependencyType -eq 'Direct') } `
+    | ConvertTo-C4ComponentDiagram "Component Diagram - Company XYZ - Dependency Sample" -NameTag $nameTag -AdditionalContent $c4AdditionalContent `
+    | Out-File (Join-Path $PSScriptRoot "../docs/c4-component-CompanyXyz.puml")
+    
