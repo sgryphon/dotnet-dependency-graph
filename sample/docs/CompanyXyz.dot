@@ -1,0 +1,6 @@
+digraph G { subgraph cluster_0 { label="Legend"; "Executable (.exe)" [shape=hexagon,style=filled,fillcolor="#cccccc"]; "Library (.dll)" [shape=rectangle,style=filled,fillcolor="#ffffff"]; "External Library / Other" [shape=oval,style=filled,fillcolor="#eeeeee"]; }
+rankdir=LR;
+"CompanyXyz.DependencySample.Worker" [shape=rectangle,style=filled,fillcolor="C"];
+"CompanyXyz.DependencySample.Library1" [shape=rectangle,style=filled,fillcolor="C"];
+    "CompanyXyz.DependencySample.Worker" -> "CompanyXyz.DependencySample.Library1";
+}

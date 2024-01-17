@@ -37,7 +37,7 @@ $dotProps = 'rankdir=LR;'
 Import-CSV (Join-Path $working "Dependencies-CompanyXyz.csv") `
     | Where-Object { ($_.DependencyType -eq 'Direct') -and ($_.Scope -eq 'Included') } `
     | Where-Object { -not ($_.Assembly -match 'Test|Migrat') } `
-    | ConvertTo-DotGraph $nameColor $dotProps | Out-File (Join-Path $working "CompanyXyz.dot") -encoding ASCII
+    | ConvertTo-DotGraph $nameColor $dotProps | Out-File (Join-Path $PSScriptRoot "../docs/CompanyXyz.dot") -encoding ASCII
 
 # 3. Use GraphViz to generate graphs
 
