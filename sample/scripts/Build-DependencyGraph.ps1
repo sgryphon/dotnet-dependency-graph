@@ -2,7 +2,8 @@
 # Builds depenedency graph for CompanyXyz assemblies
 
 # Import library functions
-. ../DotnetDependencyGraph.ps1
+Remove-Module DotnetDependencyGraph
+Import-Module ../DotnetDependencyGraph.psm1
 
 
 # 0. Copy DLLs to working folder

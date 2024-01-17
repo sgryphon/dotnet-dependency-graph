@@ -280,3 +280,7 @@ function FormatDot ( $name, $scope, $assemblyType, $nameColor ) {
     $format = """$name"" [shape=$shape,style=filled,fillcolor=""$color""]";
     return $format; 
 }
+
+Export-ModuleMember -Function Get-ReferencedAssemblies
+Export-ModuleMember -Function Resolve-AssemblyReferences
+Export-ModuleMember -Function ConvertTo-DotGraph
