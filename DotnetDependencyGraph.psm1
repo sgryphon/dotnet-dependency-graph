@@ -308,23 +308,23 @@ function ConvertTo-C4ComponentDiagram {
         
         $defined = @();
 
-        # Included items
-        foreach ($item in $allReferences) {
-            if ( -not( $defined -contains $item.Assembly ) ) {
-                $format = FormatC4Component $item.Assembly "Included" $item.AssemblyType $NameTag;
-                Write-Output "$format";
-                $defined += $item.Assembly;
-            }
-        }
-
-        Write-Output ""
-
         # Referenced items
         foreach ($item in $allReferences) {
             if ( -not( $defined -contains $item.Reference ) ) {
                 $format = FormatC4Component $item.Reference $item.Scope "DLL" $NameTag;
                 Write-Output "$format";
                 $defined += $item.Reference;
+            }
+        }
+
+        Write-Output ""
+
+        # Included items
+        foreach ($item in $allReferences) {
+            if ( -not( $defined -contains $item.Assembly ) ) {
+                $format = FormatC4Component $item.Assembly "Included" $item.AssemblyType $NameTag;
+                Write-Output "$format";
+                $defined += $item.Assembly;
             }
         }
 
@@ -451,23 +451,23 @@ function ConvertTo-PlantUml {
         
         $defined = @();
 
-        # Included items
-        foreach ($item in $allReferences) {
-            if ( -not( $defined -contains $item.Assembly ) ) {
-                $format = FormatPlantUmlComponent $item.Assembly "Included" $item.AssemblyType $NameColor;
-                Write-Output "$format";
-                $defined += $item.Assembly;
-            }
-        }
-
-        Write-Output ""
-
         # Referenced items
         foreach ($item in $allReferences) {
             if ( -not( $defined -contains $item.Reference ) ) {
                 $format = FormatPlantUmlComponent $item.Reference $item.Scope "DLL" $NameColor;
                 Write-Output "$format";
                 $defined += $item.Reference;
+            }
+        }
+
+        Write-Output ""
+
+        # Included items
+        foreach ($item in $allReferences) {
+            if ( -not( $defined -contains $item.Assembly ) ) {
+                $format = FormatPlantUmlComponent $item.Assembly "Included" $item.AssemblyType $NameColor;
+                Write-Output "$format";
+                $defined += $item.Assembly;
             }
         }
 

@@ -9,23 +9,23 @@ LAYOUT_LEFT_RIGHT()
 AddComponentTag("Worker", $bgColor="#ccffcc")
 AddComponentTag("System", $bgColor="#ccccff")
 
-Component(CompanyXyz.DependencySample.Worker, "Worker", ".NET DLL", "CompanyXyz.DependencySample.Worker", $tags="Worker")
-Component(CompanyXyz.DependencySample.Library1, "Library1", ".NET DLL", "CompanyXyz.DependencySample.Library1")
-
-Component_Ext(Microsoft.Extensions.Hosting, "Hosting", ".NET DLL", "Microsoft.Extensions.Hosting")
-Component_Ext(System.Runtime, "Runtime", ".NET DLL", "System.Runtime", $tags="System")
-Component_Ext(Microsoft.Extensions.Logging.Abstractions, "Logging.Abstractions", ".NET DLL", "Microsoft.Extensions.Logging.Abstractions")
 Component_Ext(Microsoft.Extensions.Configuration.UserSecrets, "UserSecrets", ".NET DLL", "Microsoft.Extensions.Configuration.UserSecrets")
 Component_Ext(Microsoft.Extensions.DependencyInjection.Abstractions, "DependencyInjection.Abstractions", ".NET DLL", "Microsoft.Extensions.DependencyInjection.Abstractions")
+Component_Ext(System.Runtime, "Runtime", ".NET DLL", "System.Runtime", $tags="System")
+Component_Ext(Microsoft.Extensions.Logging.Abstractions, "Logging.Abstractions", ".NET DLL", "Microsoft.Extensions.Logging.Abstractions")
+Component_Ext(Microsoft.Extensions.Hosting, "Hosting", ".NET DLL", "Microsoft.Extensions.Hosting")
 Component_Ext(Microsoft.Extensions.Hosting.Abstractions, "Hosting.Abstractions", ".NET DLL", "Microsoft.Extensions.Hosting.Abstractions")
+Component(CompanyXyz.DependencySample.Library1, "Library1", ".NET DLL", "CompanyXyz.DependencySample.Library1")
 
-Rel(CompanyXyz.DependencySample.Worker, Microsoft.Extensions.Hosting, "Use", ".NET reference")
-Rel(CompanyXyz.DependencySample.Library1, System.Runtime, "Use", ".NET reference")
-Rel(CompanyXyz.DependencySample.Worker, Microsoft.Extensions.Logging.Abstractions, "Use", ".NET reference")
+Component(CompanyXyz.DependencySample.Worker, "Worker", ".NET DLL", "CompanyXyz.DependencySample.Worker", $tags="Worker")
+
 Rel(CompanyXyz.DependencySample.Worker, Microsoft.Extensions.Configuration.UserSecrets, "Use", ".NET reference")
 Rel(CompanyXyz.DependencySample.Worker, Microsoft.Extensions.DependencyInjection.Abstractions, "Use", ".NET reference")
-Rel(CompanyXyz.DependencySample.Worker, CompanyXyz.DependencySample.Library1, "Use", ".NET reference")
+Rel(CompanyXyz.DependencySample.Library1, System.Runtime, "Use", ".NET reference")
+Rel(CompanyXyz.DependencySample.Worker, Microsoft.Extensions.Logging.Abstractions, "Use", ".NET reference")
+Rel(CompanyXyz.DependencySample.Worker, Microsoft.Extensions.Hosting, "Use", ".NET reference")
 Rel(CompanyXyz.DependencySample.Worker, Microsoft.Extensions.Hosting.Abstractions, "Use", ".NET reference")
+Rel(CompanyXyz.DependencySample.Worker, CompanyXyz.DependencySample.Library1, "Use", ".NET reference")
 
 SHOW_LEGEND()
 
