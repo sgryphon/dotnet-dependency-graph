@@ -21,6 +21,7 @@ param ()
 Import-Module ../DotnetDependencyGraph.psm1 -Force
 
 $working = Join-Path $PSScriptRoot "../working"
+# $working = 'C:\Code\dotnet-dependency-graph\sample\working'
 $data = Join-Path $working "data"
 $csvFilePath = Join-Path $working "Dependencies-CompanyXyz.csv"
 
@@ -32,7 +33,7 @@ if (Test-Path $data) {
 }
 $newDirectory = New-Item -ItemType Directory -Path $data
 
-Get-ChildItem (Join-Path $PSScriptRoot "..\src\CompanyXyz.DependencySample.Worker\bin\Debug") -Filter CompanyXyz*.dll -Recur -File | `
+Get-ChildItem (Join-Path $working "..\src\CompanyXyz.DependencySample.Worker\bin\Debug") -Filter CompanyXyz*.dll -Recur -File | `
     ForEach-Object { Copy-Item $_.FullName $data -Force }
 
 
@@ -65,7 +66,7 @@ Import-CSV (Join-Path $working "Dependencies-CompanyXyz.csv") `
     | Where-Object { ($_.DependencyType -eq 'Direct') } `
     | Where-Object { -not ($_.Assembly -match 'Test|Migrat') } `
     | ConvertTo-PlantUml "Company XYZ - Dependency Sample component diagram" -NameColor $nameColor -AdditionalContent $plantUmlAdditionalContent `
-    | Out-File (Join-Path $PSScriptRoot "../docs/dotnet-dependencies-CompanyXyz.puml")
+    | Out-File (Join-Path $working "../docs/dotnet-dependencies-CompanyXyz.puml")
 
 
 Write-Verbose "Load from saved CSV, filter, convert to C4 (in PlantUML), and save"
@@ -80,5 +81,5 @@ $c4AdditionalContent = "LAYOUT_LEFT_RIGHT()`n" `
 Import-CSV (Join-Path $working "Dependencies-CompanyXyz.csv") `
     | Where-Object { ($_.DependencyType -eq 'Direct') } `
     | ConvertTo-C4ComponentDiagram "Component Diagram - Company XYZ - Dependency Sample" -NameTag $nameTag -AdditionalContent $c4AdditionalContent `
-    | Out-File (Join-Path $PSScriptRoot "../docs/c4-component-CompanyXyz.puml")
+    | Out-File (Join-Path $working "../docs/c4-component-CompanyXyz.puml")
     

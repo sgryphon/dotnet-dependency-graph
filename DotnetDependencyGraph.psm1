@@ -34,7 +34,7 @@
 
 .OUTPUTS
 
-    Objects with Assembly (name), AssemblyType (EXE or DLL), and References (array of referenced names)
+    Objects with Assembly (name), AssemblyVersion, AssemblyType (EXE or DLL), and References (array of referenced names & versions)
 
 .EXAMPLE
 
@@ -65,19 +65,26 @@ function Get-ReferencedAssemblies {
 
             $references = @();
             foreach ( $item in $referenced ) {
-                $references += $item.Name;
+                $references += [PSCustomObject]@{
+                    Name = $item.Name
+                    Version = $item.Version
+                }
             }
 
-            $object = "" | Select-Object Assembly, AssemblyType, References;
-            $object.Assembly = $assembly.GetName().Name;
+            $assemblyType = "Other"
             if ( $name.EndsWith(".exe") ) {
-                $object.AssemblyType = "EXE";
+                $assemblyType = "EXE"
             }
-            else {
-                $object.AssemblyType = "DLL";
+            elseif ( $name.EndsWith(".dll") ) {
+                $assemblyType = "DLL"
             }
-            $object.References = $references;
-            Write-Output $object;
+            $object = [PSCustomObject]@{
+                Assembly = $assembly.GetName().Name
+                AssemblyVersion = $assembly.GetName().Version
+                AssemblyType = $assemblyType
+                References = $references
+            }
+            Write-Output $object
         }
     }
     end {
@@ -91,7 +98,8 @@ function Get-ReferencedAssemblies {
 
 .DESCRIPTION
 
-    The entire tree of references (both direct and indirect) is recursively expanded.
+    The entire tree of references (both direct and indirect) is recursively expanded,
+    into a flat list of each Assembly/AssemblyVersion to Reference/ReferenceVersion pair.
 
     DependencyType: If LongestChain = 1, then the reference is a Direct dependent,
     otherwise if ShortestChain = 1 (and LongestChain > 1), then the reference is Redundant
@@ -110,9 +118,9 @@ function Get-ReferencedAssemblies {
 
 .OUTPUTS
 
-    Objects with Assembly, AssemblyType (EXE or DLL), Reference
-    (each individual reference), ShortestChain, LongestChain, 
-    DependencyType (Direct, Redundant or Indirect),
+    Objects with Assembly, AssemblyVersion, AssemblyType (EXE or DLL),
+    Reference (name foreach individual reference), ReferenceVersion,
+    ShortestChain, LongestChain, DependencyType (Direct, Redundant or Indirect),
     Scope (Included or External).
 
 .EXAMPLE
@@ -134,21 +142,21 @@ function Resolve-AssemblyReferences {
     )
     begin {
         # Build lookup dictionary
-        $allAssemblyReferences = @{};
-        $allAssemblyType = @{};
+        $allAssemblyLookup = @{}
     }
     process {
-        $allAssemblyReferences[$_.Assembly] = $_.References;
-        $allAssemblyType[$_.Assembly] = $_.AssemblyType;
+        # Key is the assembly name, pointing to array of referenced keys (other names)
+        $allAssemblyLookup[$_.Assembly] = $_
     }
     end {
         # Once lookup dictionary is complete, use it to create the dependency tree
-        $expandedReferences = @{};
-        foreach ($item in $allAssemblyReferences.Keys) {
+        $expandedReferences = @{}
+        foreach ($key in $allAssemblyLookup.Keys) {
             #Write-Host $item;
-            $visited = @();
-            $visited += $item;
-            RecurseAddDescendents $allAssemblyReferences $visited $expandedReferences $allAssemblyType[$item];
+            $visitedKeys = @()
+            $visitedKeys += $key
+            $assembly = $allAssemblyLookup[$key]
+            RecurseAddDescendents $allAssemblyLookup $visitedKeys $expandedReferences $assembly
         }
 
         # Update dependency attributes
@@ -167,7 +175,7 @@ function Resolve-AssemblyReferences {
             }
 
             $reference = $entry.Reference;
-            if ( $allAssemblyReferences.ContainsKey($reference) ) {
+            if ( $allAssemblyLookup.ContainsKey($reference) ) {
                 $entry.Scope = "Included";
             }
             else {
@@ -183,44 +191,53 @@ function Resolve-AssemblyReferences {
     }	
 }
 
-function RecurseAddDescendents($lookup, $visited, $result, $assemblyType) {
-    $current = $visited[-1]; # Last node
-    if ( -not $lookup.ContainsKey($current) ) {
-        # Not in lookup table
-        return;
+function RecurseAddDescendents($allAssemblyLookup, $visitedKeys, $result, $assembly) {
+    $currentKey = $visitedKeys[-1] # Last node
+    if ( -not $allAssemblyLookup.ContainsKey($currentKey) ) {
+        # Not in lookup table, i.e. external leaf (no further processing)
+        return
     }
-    $start = $visited[0];
-    $dependencies = $lookup[$current];
-    foreach ($item in $dependencies) {
-        if ( $visited -contains $item ) {
+    $startKey = $visitedKeys[0]
+    $childReferences = $allAssemblyLookup[$currentKey].References;
+    foreach ($child in $childReferences) {
+        if ( $visitedKeys -contains $child.Name) {
             # Circular link detected; finish processing branch
         }
         else {
-            $chainLength = $visited.Length;
-            $key = "$start|$item";
-            $object = $result[$key];
+            $chainLength = $visitedKeys.Length;
+            $resultKey = "$startKey|$($child.Name)";
+            $object = $result[$resultKey];
             if ( -not $object ) {
-                $object = "" | Select-Object Assembly, AssemblyType, Reference, ShortestChain, LongestChain, DependencyType, Scope;
-                $object.Assembly = $current;
-                $object.AssemblyType = $assemblyType;
-                $object.Reference = $item;
-                $object.ShortestChain = $chainLength;
-                $object.LongestChain = $chainLength;
+                $object = [PSCustomObject]@{
+                    Assembly = $currentKey
+                    AssemblyVersion = $assembly.AssemblyVersion
+                    AssemblyType = $assembly.AssemblyType
+                    Reference = $child.Name
+                    ReferenceVersion = $child.Version
+                    ShortestChain = $chainLength
+                    LongestChain = $chainLength
+                    DependencyType = ''
+                    Scope = ''
+                }
             }
             else {
                 if ( $chainLength -lt $object.ShortestChain ) {
-                    $object.ShortestChain = $chainLength;
+                    $object.ShortestChain = $chainLength
                 }
                 if ( $chainLength -gt $object.LongestChain ) {
-                    $object.LongestChain = $chainLength;
+                    $object.LongestChain = $chainLength
+                }
+                if ( [Version]$child.Version -gt [Version]$object.ReferenceVersion ) {
+                    Write-Verbose "Updating version for $resultKey from $($object.ReferenceVersion) to $($child.Version) because it is newer"
+                    $object.ReferenceVersion = $child.Version
                 }
             }
-            $result[$key] = $object;
+            $result[$resultKey] = $object;
 
             # Recurse
-            $visited += $item;
-            RecurseAddDescendents $lookup $visited $result $assemblyType;
-            $visited = $visited[0..($visited.Length - 2)];
+            $visitedKeys += $child.Name;
+            RecurseAddDescendents $allAssemblyLookup $visitedKeys $result $assembly
+            $visitedKeys = $visitedKeys[0..($visitedKeys.Length - 2)];
         }
     }
 }
@@ -305,13 +322,20 @@ function ConvertTo-C4ComponentDiagram {
             Write-Output $AdditionalContent
             Write-Output ""    
         }
-        
+
+        $included = @();
+        foreach ($item in $allReferences) {
+            if ( -not( $included -contains $item.Assembly ) ) {
+                $included += $item.Assembly;
+            }
+        }
+
         $defined = @();
 
-        # Referenced items
+        # Referenced items (that are not included items)
         foreach ($item in $allReferences) {
-            if ( -not( $defined -contains $item.Reference ) ) {
-                $format = FormatC4Component $item.Reference $item.Scope "DLL" $NameTag;
+            if ( -not( $defined -contains $item.Reference ) -and -not( $included -contains $item.Reference ) ) {
+                $format = FormatC4Component $item.Reference $item.Scope $item.ReferenceVersion "DLL" $NameTag;
                 Write-Output "$format";
                 $defined += $item.Reference;
             }
@@ -319,10 +343,10 @@ function ConvertTo-C4ComponentDiagram {
 
         Write-Output ""
 
-        # Included items
+        # Included items; output after reference items so diagram is rendered more balanced
         foreach ($item in $allReferences) {
             if ( -not( $defined -contains $item.Assembly ) ) {
-                $format = FormatC4Component $item.Assembly "Included" $item.AssemblyType $NameTag;
+                $format = FormatC4Component $item.Assembly "Included" $item.AssemblyVersion $item.AssemblyType $NameTag;
                 Write-Output "$format";
                 $defined += $item.Assembly;
             }
@@ -342,7 +366,7 @@ function ConvertTo-C4ComponentDiagram {
     }
 }
 
-function FormatC4Component ( $name, $scope, $assemblyType, $nameTag ) {
+function FormatC4Component ( $name, $scope, $assemblyVersion, $assemblyType, $nameTag ) {
     $split = $name.Split(".")
     $shortName = $split[$split.Length - 1]
     if ( $shortName -eq "Abstractions" ) {
@@ -375,7 +399,7 @@ function FormatC4Component ( $name, $scope, $assemblyType, $nameTag ) {
         $tagPart = ", `$tags=""$tag""";
     }
 
-    $format = "$macro($name, ""$shortName"", "".NET $assemblyType"", ""$name""$tagPart)";
+    $format = "$macro($name, ""$shortName"", "".NET $assemblyType"", ""$name $assemblyVersion""$tagPart)";
     return $format; 
 }
 
@@ -449,11 +473,18 @@ function ConvertTo-PlantUml {
             Write-Output ""    
         }
         
+        $included = @();
+        foreach ($item in $allReferences) {
+            if ( -not( $included -contains $item.Assembly ) ) {
+                $included += $item.Assembly;
+            }
+        }
+
         $defined = @();
 
-        # Referenced items
+        # Referenced items (that are not included items)
         foreach ($item in $allReferences) {
-            if ( -not( $defined -contains $item.Reference ) ) {
+            if ( -not( $defined -contains $item.Reference ) -and -not( $included -contains $item.Reference ) ) {
                 $format = FormatPlantUmlComponent $item.Reference $item.Scope "DLL" $NameColor;
                 Write-Output "$format";
                 $defined += $item.Reference;

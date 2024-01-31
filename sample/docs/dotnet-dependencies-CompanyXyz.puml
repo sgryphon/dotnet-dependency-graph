@@ -4,22 +4,22 @@ title Company XYZ - Dependency Sample component diagram
 
 left to right direction
 
-component [Microsoft.Extensions.Configuration.UserSecrets] <<External>> #eeeeee
-component [Microsoft.Extensions.DependencyInjection.Abstractions] <<External>> #eeeeee
-component [System.Runtime] <<External>> #eeeeee
 component [Microsoft.Extensions.Logging.Abstractions] <<External>> #eeeeee
-component [Microsoft.Extensions.Hosting] <<External>> #eeeeee
 component [Microsoft.Extensions.Hosting.Abstractions] <<External>> #eeeeee
-component [CompanyXyz.DependencySample.Library1]  #ffffff
+component [Microsoft.Extensions.Configuration.UserSecrets] <<External>> #eeeeee
+component [System.Runtime] <<External>> #eeeeee
+component [Microsoft.Extensions.DependencyInjection.Abstractions] <<External>> #eeeeee
+component [Microsoft.Extensions.Hosting] <<External>> #eeeeee
 
 component [CompanyXyz.DependencySample.Worker]  #ccffcc
+component [CompanyXyz.DependencySample.Library1]  #ffffff
 
-[CompanyXyz.DependencySample.Worker] ..> [Microsoft.Extensions.Configuration.UserSecrets] : <<use>>
-[CompanyXyz.DependencySample.Worker] ..> [Microsoft.Extensions.DependencyInjection.Abstractions] : <<use>>
-[CompanyXyz.DependencySample.Library1] ..> [System.Runtime] : <<use>>
 [CompanyXyz.DependencySample.Worker] ..> [Microsoft.Extensions.Logging.Abstractions] : <<use>>
-[CompanyXyz.DependencySample.Worker] ..> [Microsoft.Extensions.Hosting] : <<use>>
 [CompanyXyz.DependencySample.Worker] ..> [Microsoft.Extensions.Hosting.Abstractions] : <<use>>
+[CompanyXyz.DependencySample.Worker] ..> [Microsoft.Extensions.Configuration.UserSecrets] : <<use>>
 [CompanyXyz.DependencySample.Worker] ..> [CompanyXyz.DependencySample.Library1] : <<use>>
+[CompanyXyz.DependencySample.Library1] ..> [System.Runtime] : <<use>>
+[CompanyXyz.DependencySample.Worker] ..> [Microsoft.Extensions.DependencyInjection.Abstractions] : <<use>>
+[CompanyXyz.DependencySample.Worker] ..> [Microsoft.Extensions.Hosting] : <<use>>
 
 @enduml
