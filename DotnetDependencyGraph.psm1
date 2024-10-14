@@ -209,7 +209,7 @@ function RecurseAddDescendents($allAssemblyLookup, $visitedKeys, $result, $assem
             $object = $result[$resultKey];
             if ( -not $object ) {
                 $object = [PSCustomObject]@{
-                    Assembly = $currentKey
+                    Assembly = $startKey
                     AssemblyVersion = $assembly.AssemblyVersion
                     AssemblyType = $assembly.AssemblyType
                     Reference = $child.Name
@@ -356,7 +356,11 @@ function ConvertTo-C4ComponentDiagram {
 
         # Links
         foreach ($item in $allReferences) {
-            Write-Output "Rel($($item.Assembly), $($item.Reference), ""Use"", "".NET reference"")"
+          if ( $item.DependencyType -eq "Indirect") {
+            Write-Output "Rel($($item.Assembly), $($item.Reference), ""Indirect"", `$tags=""$($item.DependencyType)"")"
+          } else {
+            Write-Output "Rel($($item.Assembly), $($item.Reference), ""Use"", "".NET reference"", `$tags=""$($item.DependencyType)"")"
+          }
         }
 
         Write-Output ""
